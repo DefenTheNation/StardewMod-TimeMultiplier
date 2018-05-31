@@ -4,3 +4,6 @@
 
 /TimeMultiplier/obj/Release
 /.vs
+/TimeMultiplier/bin/Release
+/TimeMultiplier/obj/Debug
+/TimeMultiplier/bin/Debug
