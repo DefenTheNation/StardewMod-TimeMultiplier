@@ -8,8 +8,8 @@ namespace TimeMultiplier
 {
     public class TimeMultiplierMod : Mod
     {
+        // Notes:
         // 7 seconds is hardcoded into StardewValley.exe, class Game1, method UpdateGameClock
-        public const int IntervalMax = 7000;
 
         public int LastTimeInterval { get; set; }
         public TimeMultiplierConfig Config { get; set; }
@@ -26,6 +26,8 @@ namespace TimeMultiplier
 
                 string configLocation = Path.Combine("data", Constants.SaveFolderName + ".json");
                 Config = helper.ReadJsonFile<TimeMultiplierConfig>(configLocation) ?? new TimeMultiplierConfig();
+
+                if (Config.Enabled) timeMultiplierToggled(Config.Enabled);
             };
 
             SaveEvents.AfterReturnToTitle += (sender, e) =>
@@ -36,6 +38,7 @@ namespace TimeMultiplier
                 helper.WriteJsonFile<TimeMultiplierConfig>(configLocation, Config);
 
                 Config = new TimeMultiplierConfig();
+                timeMultiplierToggled(false);
             };
 
             helper.ConsoleCommands.Add("time_multiplier_change", "Updates time multiplier on the fly", (string command, string[] args) =>
@@ -63,8 +66,10 @@ namespace TimeMultiplier
 
             helper.ConsoleCommands.Add("time_multiplier_toggle", "Updates time multiplier on the fly", (string command, string[] args) =>
             {
+                if (!timeMultiplierToggled(!Config.Enabled)) return;
+
                 LastTimeInterval = 0;
-                Config.Enabled = !Config.Enabled;
+                Config.Enabled = !Config.Enabled;               
 
                 string configLocation = Path.Combine("data", Constants.SaveFolderName + ".json");
                 helper.WriteJsonFile<TimeMultiplierConfig>(configLocation, Config);
@@ -72,28 +77,10 @@ namespace TimeMultiplier
                 Monitor.Log("Time multiplier enabled: " + Config.Enabled, LogLevel.Info);
             });
 
-            GameEvents.UpdateTick += (sender, e) =>
-            {
-                if (!Context.IsWorldReady || !Context.IsMainPlayer || !Config.Enabled) return;
-
-                int delta;
-                if (Game1.gameTimeInterval < LastTimeInterval)
-                {
-                    delta = Game1.gameTimeInterval;
-                    LastTimeInterval = 0;
-                }
-                else
-                {
-                    delta = Game1.gameTimeInterval - LastTimeInterval;
-                }
-
-                Game1.gameTimeInterval = LastTimeInterval + (int)(delta * Config.TimeMultiplier);
-                LastTimeInterval = Game1.gameTimeInterval;
-            };
-
             Monitor.Log("Initialized");
         }
 
+        // Unregister the event when the mod is disabled
         private bool timeMultiplierToggled(bool isEnabled)
         {
             if(!Context.IsMainPlayer)
@@ -113,6 +100,7 @@ namespace TimeMultiplier
             return true;
         }
 
+        // Called on each tick to modify the rate of the game clock
         private void updateTick_ModifyClock(object sender, EventArgs e)
         {
             if (!Context.IsWorldReady) return;
