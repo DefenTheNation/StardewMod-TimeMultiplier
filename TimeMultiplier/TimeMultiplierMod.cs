@@ -16,11 +16,17 @@ namespace TimeMultiplier
         public override void Entry(IModHelper helper)
         {
             Config = new TimeMultiplierConfig();
-            
+
             LastTimeInterval = 0;
 
             helper.Events.GameLoop.SaveLoaded += (sender, e) =>
             {
+                if (!Context.IsMainPlayer)
+                {
+                    Monitor.Log("Warning: Not main Player. Not loading config", LogLevel.Warn);
+                    return;
+                }
+
                 LastTimeInterval = 0;
 
                 string configLocation = Path.Combine("data", Constants.SaveFolderName + ".json");
@@ -31,17 +37,33 @@ namespace TimeMultiplier
 
             helper.Events.GameLoop.ReturnedToTitle += (sender, e) =>
             {
+                if (!Context.IsMainPlayer)
+                {
+                    Monitor.Log("Warning: Not main Player. Not updating config", LogLevel.Warn);
+                    return;
+                }
+
                 LastTimeInterval = 0;
+                if (Constants.SaveFolderName != null)
+                {
+                    string configLocation = Path.Combine("data", Constants.SaveFolderName + ".json");
 
-                string configLocation = Path.Combine("data", Constants.SaveFolderName + ".json");
-                helper.Data.WriteJsonFile(configLocation, Config);
+                    helper.Data.WriteJsonFile(configLocation, Config);
 
-                Config = new TimeMultiplierConfig();
+                    Config = new TimeMultiplierConfig();
+                }
+
                 TimeMultiplierToggled(false);
             };
 
             helper.ConsoleCommands.Add("time_multiplier_change", "Updates time multiplier on the fly", (string command, string[] args) =>
             {
+                if (!Context.IsMainPlayer)
+                {
+                    Monitor.Log("Warning: Not main Player. Not updating config", LogLevel.Warn);
+                    return;
+                }
+
                 float multiplierArg;
 
                 if (args.Length != 1)
@@ -49,7 +71,7 @@ namespace TimeMultiplier
                     Monitor.Log("Usage: time_multiplier_change 1.00 ", LogLevel.Error);
                     return;
                 }
-                else if(!float.TryParse(args[0], out multiplierArg))
+                else if (!float.TryParse(args[0], out multiplierArg))
                 {
                     Monitor.Log("Error: '" + args[0] + "' is not a valid decimal. Usage: time_multiplier_change 1.00 ", LogLevel.Error);
                     return;
@@ -65,10 +87,16 @@ namespace TimeMultiplier
 
             helper.ConsoleCommands.Add("time_multiplier_toggle", "Updates time multiplier on the fly", (string command, string[] args) =>
             {
+                if (!Context.IsMainPlayer)
+                {
+                    Monitor.Log("Warning: Not main Player. Not updating config", LogLevel.Warn);
+                    return;
+                }
+
                 if (!TimeMultiplierToggled(!Config.Enabled)) return;
 
                 LastTimeInterval = 0;
-                Config.Enabled = !Config.Enabled;               
+                Config.Enabled = !Config.Enabled;
 
                 string configLocation = Path.Combine("data", Constants.SaveFolderName + ".json");
                 helper.Data.WriteJsonFile(configLocation, Config);
@@ -82,7 +110,7 @@ namespace TimeMultiplier
         // Unregister the event when the mod is disabled
         private bool TimeMultiplierToggled(bool isEnabled)
         {
-            if(!Context.IsMainPlayer)
+            if (!Context.IsMainPlayer)
             {
                 Monitor.Log("Warning: only the host can manipulate the game clock.", LogLevel.Warn);
                 return false;
@@ -104,6 +132,11 @@ namespace TimeMultiplier
         {
             if (!Context.IsWorldReady) return;
 
+            if (!Context.IsMainPlayer)
+            {
+                return;
+            }
+
             int delta;
             if (Game1.gameTimeInterval < LastTimeInterval)
             {
@@ -114,7 +147,6 @@ namespace TimeMultiplier
             {
                 delta = Game1.gameTimeInterval - LastTimeInterval;
             }
-
             Game1.gameTimeInterval = LastTimeInterval + (int)(delta * Config.TimeMultiplier);
             LastTimeInterval = Game1.gameTimeInterval;
         }
